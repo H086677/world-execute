@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070d">
+<title>world.execute(me); — 网页重制</title>
+<meta name="description" content="Mili《world.execute(me);》程序化视觉 MV：Three.js 实时渲染，逐帧由代码计算。">
+<link rel="icon" href="assets/web/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/main.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- ============ 光敏警告 ============ -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <div class="gate-kicker">PHOTOSENSITIVE EPILEPSY WARNING</div>
+    <h1>光敏性癫痫警告</h1>
+    <p>本作品包含<strong>高频闪烁、强烈对比与快速运动</strong>的画面。光敏性癫痫患者、或有相关病史者请勿观看。</p>
+    <p class="dim">This work contains flashing images and rapid motion. Viewer discretion is advised.</p>
+    <div class="gate-opts">
+      <label class="chk"><input type="checkbox" id="gateLow"> 降低动效强度（减少闪烁与速度）</label>
+    </div>
+    <button id="gateGo" class="btn primary">我已了解，开始播放</button>
+    <div class="gate-note">点击后开始播放音频 · 建议佩戴耳机</div>
+  </div>
+</div>
+
+<!-- ============ 画布 ============ -->
+<canvas id="gl"></canvas>
+<div id="grain"></div>
+<div id="scan"></div>
+<div id="vig"></div>
+
+<!-- ============ 歌词层 ============ -->
+<div id="lyr" class="lyr">
+  <div id="lyrTag" class="lyr-tag"><i></i><span id="lyrTagTxt">SINE</span></div>
+  <div id="lyrPrev" class="lyr-prev"></div>
+  <div id="lyrMain" class="lyr-main">
+    <span id="lyrBase" class="lyr-base"></span>
+    <span id="lyrFill" class="lyr-fill"></span>
+  </div>
+  <div id="lyrZh" class="lyr-zh"></div>
+  <div id="lyrNext" class="lyr-next"></div>
+</div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hud">
+  <div class="hud-tl">
+    <div class="brand">FrostNova<span>Org</span></div>
+    <div class="badge">WEB REMAKE</div>
+  </div>
+  <div class="hud-tr">
+    <div class="tech" id="hudTech">WebGL2 · 60 fps · every frame is code</div>
+  </div>
+  <div class="hud-bl">
+    <div class="mono" id="hudSection">intro</div>
+    <div class="mono dim" id="hudBar">bar 1 · beat 1</div>
+  </div>
+  <div class="hud-br">
+    <div class="mono" id="hudTime">0:00.00</div>
+    <div class="mono dim" id="hudFps">-- fps</div>
+  </div>
+  <div class="hud-spec" id="hudSpec"></div>
+</div>
+
+<!-- ============ 标题卡 ============ -->
+<div id="title" class="title">
+  <div class="title-kicker">Mili — world.execute(me);</div>
+  <h1 class="title-main">world.<span>execute</span><br>(me)<i>;</i></h1>
+  <div class="title-sub">// 程序化视觉 · 逐帧由代码生成</div>
+</div>
+
+<!-- ============ 控制条 ============ -->
+<div id="ctrl" class="ctrl">
+  <button id="btnPlay" class="ico" title="播放 / 暂停 (空格)" aria-label="播放">
+    <svg viewBox="0 0 24 24" id="icoPlay"><path d="M8 5v14l11-7z"/></svg>
+  </button>
+  <div class="track" id="track">
+    <div class="track-buf" id="trackBuf"></div>
+    <div class="track-fill" id="trackFill"></div>
+    <div class="track-marks" id="trackMarks"></div>
+    <div class="track-knob" id="trackKnob"></div>
+  </div>
+  <div class="time" id="timeTxt">0:00 / 3:32</div>
+  <button id="btnMute" class="ico sm" title="静音 (M)" aria-label="静音">
+    <svg viewBox="0 0 24 24"><path id="icoVol" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12z"/></svg>
+  </button>
+  <button id="btnSub" class="ico sm" title="双语字幕 (C)" aria-label="字幕">
+    <svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM7 15H5v-2h2v2zm0-4H5V9h2v2zm6 4h-2v-2h2v2zm0-4h-2V9h2v2zm6 4h-4v-2h4v2zm0-4h-4V9h4v2z"/></svg>
+  </button>
+  <button id="btnFull" class="ico sm" title="全屏 (F)" aria-label="全屏">
+    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+  </button>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="err" class="err"></div>
+
+<!-- 经典脚本：时间轴 / 音频 / 时间轴工具 / 歌词（挂到 window） -->
+<script src="data/timing.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/lyrics.js"></script>
+<!-- ES module：Three.js 场景管线 -->
+<script type="module" src="js/tw/main.js"></script>
+</body>
+</html>
